@@ -143,4 +143,4 @@ vexora.is_vexora_active(vexora_id, expected_agreement_hash)
 
 The repository includes `scripts/deploy_studionet.py`, which uses the active GenLayer CLI account and does not handle private keys or passwords itself.
 
-The final committed StudioNet instance is `0x4f3710ea791458aBe1Fe1cE5D0bbBCc0CBdf098A`. Deployment transaction `0xa3ca4b5b7fbd0570dd028a2b702f61e46524af986a2acf8953926cb36409b47c` is explicitly `FINALIZED`, with `SUCCESS` execution and `MAJORITY_AGREE`. Full compatible, incompatible, ambiguous, cache, activation, and supersession evidence is in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+Deploy the contract and document your transaction receipts in `docs/DEPLOYMENT.md`.
