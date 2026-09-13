@@ -730,17 +730,13 @@ class Vexora(gl.Contract):
     treaties: TreeMap[u256, VexoraRecord]
     successors: TreeMap[u256, u256]
 
-    next_domain_id: u256
-    next_policy_id: u256
-    next_assessment_id: u256
-    next_vexora_id: u256
+    next_domain_id: u256 = 1
+    next_policy_id: u256 = 1
+    next_assessment_id: u256 = 1
+    next_vexora_id: u256 = 1
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.next_domain_id = u256(1)
-        self.next_policy_id = u256(1)
-        self.next_assessment_id = u256(1)
-        self.next_vexora_id = u256(1)
+    def __init__(self):
+        pass
 
     def _require_policy(self, policy_id: u256) -> Policy:
         value = self.policies.get(policy_id)
@@ -841,8 +837,8 @@ class Vexora(gl.Contract):
         if len(clean_name) == 0 or len(clean_name) > MAX_DOMAIN_NAME_LEN:
             raise gl.vm.UserError(f"{ERR_EXPECTED}: domain name is invalid")
         definition = parse_domain_definition(definition_json)
-        domain_id = self.next_domain_id
         self.next_domain_id = u256(int(self.next_domain_id) + 1)
+        domain_id = self.next_domain_id
         domain = self.domains.get_or_insert_default(domain_id)
         domain.creator = gl.message.sender_address
         domain.name = clean_name
@@ -887,8 +883,8 @@ class Vexora(gl.Contract):
         domain = self._require_domain(domain_id)
         domain_definition = self._require_domain_version(domain_id, domain_version)
 
-        policy_id = self.next_policy_id
         self.next_policy_id = u256(int(self.next_policy_id) + 1)
+        policy_id = self.next_policy_id
 
         policy = self.policies.get_or_insert_default(policy_id)
         policy.owner = gl.message.sender_address
@@ -963,8 +959,8 @@ class Vexora(gl.Contract):
         if cached is not None and int(cached) != 0:
             return cached
 
-        assessment_id = self.next_assessment_id
         self.next_assessment_id = u256(int(self.next_assessment_id) + 1)
+        assessment_id = self.next_assessment_id
 
         assessment = self.assessments.get_or_insert_default(assessment_id)
         assessment.policy_a_id = policy_a_id
@@ -1152,8 +1148,8 @@ class Vexora(gl.Contract):
             parent_id,
         )
 
-        vexora_id = self.next_vexora_id
         self.next_vexora_id = u256(int(self.next_vexora_id) + 1)
+        vexora_id = self.next_vexora_id
 
         vexora = self.treaties.get_or_insert_default(vexora_id)
         vexora.assessment_id = assessment_id
