@@ -96,6 +96,12 @@ genvm-lint check contracts/vexora.py
 
 ## Deployment
 
+Vexora has been successfully deployed to the GenLayer Studio Network.
+
+**Contract Address:** `0x04a58cc5A1F12Ff3604B89D6eF57Cf183271eDa7`
+**Studio Explorer:** [View on GenLayer Explorer](https://explorer-studio.genlayer.com/address/0x04a58cc5A1F12Ff3604B89D6eF57Cf183271eDa7)
+
+### Local Deployment
 Vexora requires no constructor arguments upon initialization. Use the provided deployment script to push the contract to the GenLayer StudioNet.
 
 ```bash
