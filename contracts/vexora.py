@@ -735,7 +735,8 @@ class Vexora(gl.Contract):
     next_assessment_id: u256
     next_vexora_id: u256
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.next_domain_id = u256(1)
         self.next_policy_id = u256(1)
         self.next_assessment_id = u256(1)
