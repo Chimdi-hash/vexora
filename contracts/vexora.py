@@ -742,10 +742,10 @@ class Vexora(gl.Contract):
         next_assessment_id: int = 1,
         next_vexora_id: int = 1,
     ):
-        self.next_domain_id = u256(int(next_domain_id))
-        self.next_policy_id = u256(int(next_policy_id))
-        self.next_assessment_id = u256(int(next_assessment_id))
-        self.next_vexora_id = u256(int(next_vexora_id))
+        self.next_domain_id = u256(int(next_domain_id) if next_domain_id else 1)
+        self.next_policy_id = u256(int(next_policy_id) if next_policy_id else 1)
+        self.next_assessment_id = u256(int(next_assessment_id) if next_assessment_id else 1)
+        self.next_vexora_id = u256(int(next_vexora_id) if next_vexora_id else 1)
 
     def _require_policy(self, policy_id: u256) -> Policy:
         value = self.policies.get(policy_id)
