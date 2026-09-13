@@ -1,0 +1,151 @@
+#!/usr/bin/env python3
+"""Execute and record Vexora’s two-account StudioNet lifecycle.
+
+This runner delegates signing to the installed GenLayer CLI. It never accepts,
+prints, or stores keys/passwords. The two account names must already exist and
+be unlocked in the CLI keychain.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import pathlib
+import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+TX_RE = re.compile(r"0x[0-9a-fA-F]{64}")
+DOMAIN = {
+    "topics": [
+        {"topic": "commercial.price", "group": "commercial-payment"},
+    ],
+    "dependencies": [],
+}
+BUYER = [
+    {"topic": "commercial.price", "statement": "Total price must not exceed 50 USD."},
+]
+SELLER = [
+    {"topic": "commercial.price", "statement": "Price must be between 40 USD and 45 USD."},
+]
+INCOMPATIBLE = [
+    {"topic": "commercial.price", "statement": "Price must be at least 60 USD."},
+]
+
+
+class Demo:
+    def __init__(self, contract: str, alice: str, bob: str, cli_command: list[str]):
+        self.contract = contract
+        self.alice = alice
+        self.bob = bob
+        self.cli_command = cli_command
+        self.account = None
+        self.transactions = []
+        self.reads = {}
+
+    def cli(self, *args: str, account: str | None = None) -> str:
+        if account is not None and account != self.account:
+            self.run("account", "use", account)
+            self.account = account
+        command = [*self.cli_command, *args]
+        print("+", " ".join(command), flush=True)
+        result = subprocess.run(command, cwd=ROOT, text=True, capture_output=True, check=False)
+        output = (result.stdout or "") + (result.stderr or "")
+        if result.returncode != 0:
+            raise RuntimeError(f"command failed: {' '.join(command)}\n{output[-4000:]}")
+        return output
+
+    def run(self, *args: str) -> str:
+        return self.cli(*args)
+
+    def write(self, label: str, method: str, args: list[object], account: str) -> str:
+        rendered = [json.dumps(value, separators=(",", ":")) if isinstance(value, (dict, list)) else str(value) for value in args]
+        output = self.cli("write", self.contract, method, "--args", *rendered, account=account)
+        matches = TX_RE.findall(output)
+        if not matches:
+            raise RuntimeError(f"no transaction hash returned for {label}")
+        tx = matches[0]
+        finality = self.cli("receipt", tx, "--status", "FINALIZED", account=account)
+        if "FINALIZED" not in finality.upper():
+            raise RuntimeError(f"{label} did not reach explicit FINALIZED status")
+        if "SUCCESS" not in finality.upper() and "FINISHED_WITH_RETURN" not in finality.upper():
+            raise RuntimeError(f"{label} finalized without a verified successful execution")
+        self.transactions.append({"label": label, "tx": tx, "account": account, "finality": "FINALIZED"})
+        return tx
+
+    def read(self, label: str, method: str, args: list[object], account: str) -> str:
+        rendered = [str(value) for value in args]
+        output = self.cli("call", self.contract, method, "--args", *rendered, account=account)
+        self.reads[label] = output
+        return output
+
+    def execute(self) -> dict:
+        self.run("network", "set", "studionet")
+        self.run("account", "show")
+        self.write("domain creation", "create_domain", ["Agent Service", json.dumps(json.dumps(DOMAIN, separators=(",", ":")))], self.alice)
+        self.write("Alice policy", "create_policy", ["Alice Buyer", 1, 1, json.dumps(json.dumps(BUYER, separators=(",", ":")))], self.alice)
+        self.write("Bob policy", "create_policy", ["Bob Seller", 1, 1, json.dumps(json.dumps(SELLER, separators=(",", ":")))], self.bob)
+        self.write("compatible assessment open", "open_assessment", [1, 1, 2, 1], self.alice)
+        self.write("compatible assessment resolve", "resolve_assessment", [1], self.alice)
+        self.read("compatible assessment", "get_assessment", [1], self.alice)
+        self.read("reverse cache", "get_cached_assessment", [2, 1, 1, 1], self.bob)
+        self.write("vexora proposal", "propose_vexora", [1, 0, 0], self.alice)
+        self.read("proposed vexora", "get_vexora", [1], self.alice)
+        self.write("Bob ratification", "ratify_vexora", [1], self.bob)
+        active = self.read("active vexora", "get_vexora", [1], self.bob)
+        self.write("incompatible policy", "create_policy", ["Bob Conflict", 1, 1, json.dumps(json.dumps(INCOMPATIBLE, separators=(",", ":")))], self.bob)
+        self.write("incompatible assessment open", "open_assessment", [1, 1, 3, 1], self.alice)
+        self.write("incompatible assessment resolve", "resolve_assessment", [2], self.alice)
+        self.read("incompatible assessment", "get_assessment", [2], self.alice)
+        self.write("ambiguous policy", "create_policy", ["Bob Ambiguous", 1, 1, json.dumps(json.dumps([
+            {"topic": "commercial.price", "statement": "The price uses an amount with no conversion rule."},
+        ], separators=(",", ":")))], self.bob)
+        self.write("ambiguous assessment open", "open_assessment", [1, 1, 4, 1], self.alice)
+        self.write("ambiguous assessment resolve", "resolve_assessment", [3], self.alice)
+        self.read("ambiguous assessment", "get_assessment", [3], self.alice)
+        self.write("successor proposal", "propose_vexora", [1, 0, 1], self.alice)
+        self.read("parent while successor proposed", "get_vexora", [1], self.alice)
+        self.write("successor ratification", "ratify_vexora", [2], self.bob)
+        self.read("superseded parent", "get_vexora", [1], self.bob)
+        self.read("active successor", "get_vexora", [2], self.bob)
+        evidence = {
+            "network": "studionet",
+            "contract": self.contract,
+            "accounts": {"alice": self.alice, "bob": self.bob},
+            "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+            "transactions": self.transactions,
+            "reads": self.reads,
+            "expected": {
+                "compatible_assessment": "COMPATIBLE",
+                "reverse_cache": 1,
+                "proposal": "PROPOSED",
+                "active_vexora": "ACTIVE",
+                "incompatible_assessment": "INCOMPATIBLE",
+                "ambiguous_assessment": "AMBIGUOUS",
+                "parent_after_successor": "SUPERSEDED",
+                "successor": "ACTIVE",
+            },
+        }
+        output = ROOT / "artifacts" / "studionet_lifecycle.json"
+        output.parent.mkdir(exist_ok=True)
+        output.write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+        print(f"Evidence written to {output}")
+        return evidence
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--contract", required=True)
+    parser.add_argument("--alice", default="termsmet-studionet-submitter")
+    parser.add_argument("--bob", default="party_b")
+    parser.add_argument("--cli", nargs="+", default=["genlayer"])
+    args = parser.parse_args()
+    Demo(args.contract, args.alice, args.bob, args.cli).execute()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
