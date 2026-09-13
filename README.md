@@ -2,11 +2,11 @@
 
 **Vexora** is a strict, consensus-backed Intelligent Contract deployed on GenLayer. It serves as a foundational primitive for bilateral policy matching and autonomous agent compatibility. 
 
-Vexora strictly evaluates overlapping policy constraints between two independent systems and requires explicit, bilateral ratification to form a binding on-chain agreement. It operates entirely on-chain without any reliance on off-chain databases, frontends, or central servers.
+Vexora strictly evaluates overlapping policy constraints between two independent systems and requires explicit, bilateral ratification to form a binding on-chain agreement. It operates entirely on-chain. There is absolutely no frontend, no hosted backend, no mock application, and no off-chain database.
 
 ## Core Philosophy: Strict Bounded Evaluation
 
-Vexora operates on a fundamental principle of **Zero Invented Compromise**. 
+Vexora operates on a fundamental principle of **no invented compromise**. 
 
 When two autonomous systems (such as a buyer and a seller agent) attempt to interact, their policies might contain competing constraints. Vexora does not allow the underlying LLM consensus to invent, negotiate, or hallucinate a middle ground. 
 
@@ -21,8 +21,8 @@ If an LLM attempts to generate alternative prose or negotiate a price, the trans
 
 Vexora's lifecycle is composed of four rigid phases:
 
-### 1. Immutable Policy Definitions
-System owners deploy their operational constraints as version-controlled, definition-hashed policies. 
+### 1. Immutable Policy Versions
+System owners deploy their operational constraints as version-controlled, definition-hashed policies. Once deployed, these immutable policy versions guarantee that historical agreements can never be altered.
 
 ```json
 [
@@ -39,12 +39,12 @@ System owners deploy their operational constraints as version-controlled, defini
 Once published, a policy version is cryptographically pinned. Updates require publishing a new version, preserving the integrity of historical agreements.
 
 ### 2. Semantic Consensus Assessment
-When two systems interact, Vexora requests a semantic compatibility assessment. The GenLayer consensus engine evaluates the overlapping constraints. 
+When two systems interact, Vexora requests a semantic compatibility assessment. It uses a custom `gl.vm.run_nondet_unsafe` block where validators independently re-evaluate the same prompt context.
 To conserve resources and guarantee order-independence, the results are cached bidirectionally (i.e., `A + B` shares the same evaluation state as `B + A`). Unilateral constraints (topics present in only one policy) bypass the LLM and are resolved deterministically.
 
 ### 3. Bilateral Ratification
 An assessment that resolves to `COMPATIBLE` can be converted into a formal **Vexora Proposal**.
-Crucially, AI consensus alone cannot activate an agreement. The proposal remains pending until **both independent policy owners** manually or programmatically ratify the exact terms. If either party rejects it, the proposal is permanently voided.
+Crucially, AI consensus alone cannot activate an agreement. The proposal remains pending until **both independent policy owners** manually or programmatically ratify the exact terms through bilateral ratification. If either party rejects it, the proposal is permanently voided.
 
 ### 4. Lifecycle & Supersession
 Vexoras can expire or be superseded. When a new version of a policy requires an updated agreement, the successor Vexora is proposed. The active Vexora remains fully operational until the successor receives its second and final ratification, at which point the state atomically transitions.
